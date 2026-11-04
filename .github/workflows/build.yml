@@ -39,10 +39,16 @@ jobs:
           java-version: 17
 
       - name: Build Plugins
+        shell: bash
         run: |
+          set -o pipefail
           cd $GITHUB_WORKSPACE/src
           chmod +x gradlew
-          ./gradlew make makePluginsJson
+          ./gradlew make makePluginsJson --console=plain 2>&1 | tee $GITHUB_WORKSPACE/build.log || {
+            MSG=$(grep -E "^e: |What went wrong|error:|Execution failed|Could not|FAILURE" -A3 $GITHUB_WORKSPACE/build.log | head -40 | sed ':a;N;$!ba;s/\n/%0A/g')
+            echo "::error::$MSG"
+            exit 1
+          }
           cp **/build/*.cs3 $GITHUB_WORKSPACE/builds
           cp build/plugins.json $GITHUB_WORKSPACE/builds
 
