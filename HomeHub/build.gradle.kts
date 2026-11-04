@@ -1,3 +1,8 @@
+dependencies {
+    // Uygulama zaten sağlıyor, pakete eklenmesin
+    compileOnly("androidx.appcompat:appcompat:1.7.1")
+}
+
 // Her yeni sürümde bu sayıyı artır
 version = 1
 
