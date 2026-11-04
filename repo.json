@@ -1,0 +1,8 @@
+{
+  "name": "HomeHub Repo",
+  "description": "Kişisel HomeHub eklentisi",
+  "manifestVersion": 1,
+  "pluginLists": [
+    "https://raw.githubusercontent.com/Psrpis/cloudstream-homehub/builds/plugins.json"
+  ]
+}
