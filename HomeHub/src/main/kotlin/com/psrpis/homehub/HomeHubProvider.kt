@@ -4,9 +4,15 @@ import com.lagradost.cloudstream3.APIHolder
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.MainAPI
+import com.lagradost.cloudstream3.MainPageData
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.newHomePageResponse
+
+/** Yüklü tüm eklentilerin güvenli bir kopyası (kilit altında alınır). */
+internal fun allApis(): List<MainAPI> =
+    APIHolder.allProviders.withLock { APIHolder.allProviders.toList() }
 
 /**
  * HomeHub: yüklü diğer eklentilerin ana sayfa bölümlerini tek bir ana sayfada toplar.
@@ -16,7 +22,6 @@ class HomeHubProvider : MainAPI() {
     override var name = "HomeHub"
     override var mainUrl = "https://homehub.invalid"
     override val hasMainPage = true
-    override val hasQuickSearch = false
     override val supportedTypes = setOf(
         TvType.Movie, TvType.TvSeries, TvType.Anime, TvType.AnimeMovie,
         TvType.OVA, TvType.Cartoon, TvType.AsianDrama, TvType.Others
@@ -28,20 +33,19 @@ class HomeHubProvider : MainAPI() {
 
     private fun sources(): List<MainAPI> {
         val off = HomeHubPrefs.disabled()
-        return APIHolder.allProviders.filter { p ->
+        return allApis().filter { p ->
             p.name != name && p.hasMainPage && p.mainPage.isNotEmpty() && p.name !in off
         }
     }
 
     // Bölümler sabit değil: her açılışta, o an yüklü eklentilerden oluşturulur
-    override var mainPage: List<MainPageData>
+    override val mainPage: List<MainPageData>
         get() = sources().flatMap { p ->
             p.mainPage.map { d ->
                 val title = if (d.name.isBlank()) p.name else "${p.name} • ${d.name}"
                 MainPageData(title, "${p.name}$SEP${d.data}", d.horizontalImages)
             }
         }.ifEmpty { listOf(MainPageData("Eklenti yok", "", false)) }
-        set(_) {}
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse? {
         val parts = request.data.split(SEP, limit = 2)
@@ -49,7 +53,7 @@ class HomeHubProvider : MainAPI() {
         val providerName = parts[0]
         val origData = parts[1]
 
-        val provider = APIHolder.allProviders.firstOrNull { it.name == providerName } ?: return null
+        val provider = allApis().firstOrNull { it.name == providerName } ?: return null
         val orig = provider.mainPage.firstOrNull { it.data == origData }
         val origRequest = MainPageRequest(
             orig?.name ?: "",
@@ -66,7 +70,7 @@ class HomeHubProvider : MainAPI() {
         val items = res.items.map {
             HomePageList("${provider.name} • ${it.name}", it.list, it.isHorizontalImages)
         }
-        return HomePageResponse(items, res.hasNext)
+        return newHomePageResponse(items, res.hasNext)
     }
 
     override suspend fun search(query: String): List<SearchResponse> = emptyList()

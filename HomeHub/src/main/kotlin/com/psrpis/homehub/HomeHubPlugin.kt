@@ -3,7 +3,6 @@ package com.psrpis.homehub
 import android.content.Context
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import com.lagradost.cloudstream3.APIHolder
 import com.lagradost.cloudstream3.plugins.CloudstreamPlugin
 import com.lagradost.cloudstream3.plugins.Plugin
 
@@ -18,7 +17,7 @@ class HomeHubPlugin : Plugin() {
     }
 
     private fun showSettings(ctx: Context) {
-        val names = APIHolder.allProviders
+        val names = allApis()
             .filter { it.hasMainPage && it.name != "HomeHub" }
             .map { it.name }
             .distinct()
