@@ -3,10 +3,11 @@ package com.psrpis.homehub
 import android.content.Context
 import android.content.SharedPreferences
 
-/** Ayarlar sayfasında kapatılan eklentilerin adlarını saklar. Boşsa hepsi açık. */
+/** Bölüm sırası ve kapatılan bölümler burada saklanır. */
 object HomeHubPrefs {
     private const val FILE = "homehub_prefs"
-    private const val KEY_DISABLED = "disabled"
+    private const val KEY_ORDER = "order"
+    private const val KEY_OFF = "disabled_sections"
 
     @Volatile
     private var prefs: SharedPreferences? = null
@@ -15,10 +16,19 @@ object HomeHubPrefs {
         prefs = context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE)
     }
 
-    fun disabled(): Set<String> =
-        prefs?.getStringSet(KEY_DISABLED, emptySet())?.toSet() ?: emptySet()
+    /** Kaydedilmiş bölüm anahtarları, sırasıyla. */
+    fun order(): List<String> =
+        prefs?.getString(KEY_ORDER, "")?.split("\n")?.filter { it.isNotBlank() } ?: emptyList()
 
-    fun setDisabled(names: Set<String>) {
-        prefs?.edit()?.putStringSet(KEY_DISABLED, names)?.apply()
+    fun setOrder(keys: List<String>) {
+        prefs?.edit()?.putString(KEY_ORDER, keys.joinToString("\n"))?.apply()
+    }
+
+    /** Kapatılan bölümlerin anahtarları. Boşsa hepsi açık. */
+    fun disabledSections(): Set<String> =
+        prefs?.getStringSet(KEY_OFF, emptySet())?.toSet() ?: emptySet()
+
+    fun setDisabledSections(keys: Set<String>) {
+        prefs?.edit()?.putStringSet(KEY_OFF, keys)?.apply()
     }
 }

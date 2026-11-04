@@ -10,16 +10,50 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.newHomePageResponse
 
+internal const val SEP = "|||"
+internal const val HUB_NAME = "HomeHub"
+
+/** Ana sayfada gösterilebilecek tek bir bölüm (bir eklentinin bir ana sayfa satırı). */
+internal data class HubSection(
+    val key: String,          // "EklentiAdı|||orijinalData"
+    val title: String,        // "EklentiAdı • Bölüm"
+    val horizontal: Boolean,
+    val providerName: String
+)
+
 /** Yüklü tüm eklentilerin güvenli bir kopyası (kilit altında alınır). */
 internal fun allApis(): List<MainAPI> =
     APIHolder.allProviders.withLock { APIHolder.allProviders.toList() }
 
+/** Yüklü eklentilerdeki tüm bölümler, doğal sırayla. */
+internal fun allSections(): List<HubSection> =
+    allApis()
+        .filter { p -> p.name != HUB_NAME && p.hasMainPage && p.mainPage.isNotEmpty() }
+        .flatMap { p ->
+            p.mainPage.map { d ->
+                HubSection(
+                    key = "${p.name}$SEP${d.data}",
+                    title = if (d.name.isBlank()) p.name else "${p.name} • ${d.name}",
+                    horizontal = d.horizontalImages,
+                    providerName = p.name
+                )
+            }
+        }
+        .distinctBy { it.key }
+
+/** Kullanıcının kaydettiği sıraya göre dizilmiş bölümler (kapalı olanlar dahil). */
+internal fun orderedSections(): List<HubSection> {
+    val idx = HomeHubPrefs.order().withIndex().associate { it.value to it.index }
+    return allSections().sortedBy { idx[it.key] ?: Int.MAX_VALUE }
+}
+
 /**
  * HomeHub: yüklü diğer eklentilerin ana sayfa bölümlerini tek bir ana sayfada toplar.
+ * Bölümler ayarlardan tek tek açılıp kapatılabilir ve sıralanabilir.
  * Tıklanan içerik, kendi eklentisi (apiName) üzerinden açılır.
  */
 class HomeHubProvider : MainAPI() {
-    override var name = "HomeHub"
+    override var name = HUB_NAME
     override var mainUrl = "https://homehub.invalid"
     override val hasMainPage = true
     override val supportedTypes = setOf(
@@ -27,25 +61,15 @@ class HomeHubProvider : MainAPI() {
         TvType.OVA, TvType.Cartoon, TvType.AsianDrama, TvType.Others
     )
 
-    companion object {
-        private const val SEP = "|||"
-    }
-
-    private fun sources(): List<MainAPI> {
-        val off = HomeHubPrefs.disabled()
-        return allApis().filter { p ->
-            p.name != name && p.hasMainPage && p.mainPage.isNotEmpty() && p.name !in off
-        }
-    }
-
-    // Bölümler sabit değil: her açılışta, o an yüklü eklentilerden oluşturulur
+    // Bölümler sabit değil: her açılışta, kayıtlı ayarlara göre oluşturulur
     override val mainPage: List<MainPageData>
-        get() = sources().flatMap { p ->
-            p.mainPage.map { d ->
-                val title = if (d.name.isBlank()) p.name else "${p.name} • ${d.name}"
-                MainPageData(title, "${p.name}$SEP${d.data}", d.horizontalImages)
-            }
-        }.ifEmpty { listOf(MainPageData("Eklenti yok", "", false)) }
+        get() {
+            val off = HomeHubPrefs.disabledSections()
+            return orderedSections()
+                .filter { it.key !in off }
+                .map { MainPageData(it.title, it.key, it.horizontal) }
+                .ifEmpty { listOf(MainPageData("Bölüm yok", "", false)) }
+        }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse? {
         val parts = request.data.split(SEP, limit = 2)
