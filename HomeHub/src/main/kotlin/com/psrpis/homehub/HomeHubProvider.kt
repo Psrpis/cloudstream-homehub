@@ -24,23 +24,14 @@ class HomeHubProvider : MainAPI() {
 
     companion object {
         private const val SEP = "|||"
-
-        // Sadece bu eklentiler olsun istiyorsan adlarını yaz. Boşsa hepsi dahil olur.
-        // Örnek: setOf("Kisskh", "Goojara")
-        private val ONLY: Set<String> = emptySet()
-
-        // Ana sayfada görmek istemediğin eklentiler
-        private val EXCLUDE: Set<String> = emptySet()
     }
 
-    private fun sources(): List<MainAPI> =
-        APIHolder.allProviders.filter { p ->
-            p.name != name &&
-                p.hasMainPage &&
-                p.mainPage.isNotEmpty() &&
-                (ONLY.isEmpty() || p.name in ONLY) &&
-                p.name !in EXCLUDE
+    private fun sources(): List<MainAPI> {
+        val off = HomeHubPrefs.disabled()
+        return APIHolder.allProviders.filter { p ->
+            p.name != name && p.hasMainPage && p.mainPage.isNotEmpty() && p.name !in off
         }
+    }
 
     // Bölümler sabit değil: her açılışta, o an yüklü eklentilerden oluşturulur
     override var mainPage: List<MainPageData>
