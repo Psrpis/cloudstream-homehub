@@ -43,6 +43,8 @@ class MilfNutPs : MainAPI() {
     private fun Element.toMainPageResult(): SearchResponse? {
         val title     = this.selectFirst("header span")?.text() ?: return null
         val href      = fixUrlNull(this.selectFirst("a")?.attr("href")) ?: return null
+        // Site ici olmayan baglantilar reklamdir (ornegin candyai.gg), listeye alma
+        if (!href.startsWith(mainUrl)) return null
         val posterUrl = this.selectFirst("img")?.let { img ->
             val src = img.attr("data-lazy-src").ifBlank { img.attr("src") }
             fixUrlNull(src)
@@ -64,7 +66,7 @@ class MilfNutPs : MainAPI() {
         }
 
         val aramaCevap = document.select("article.loop-video").mapNotNull { it.toMainPageResult() }
-        return newSearchResponseList(aramaCevap, hasNext = true)
+        return newSearchResponseList(aramaCevap, hasNext = aramaCevap.isNotEmpty())
     }
 
     override suspend fun quickSearch(query: String): List<SearchResponse>? = search(query)
@@ -98,7 +100,7 @@ class MilfNutPs : MainAPI() {
         Log.d("kraptor_$name", "data = ${data}")
         val document = app.get(data).document
 
-        val video = fixUrlNull(document.selectFirst("meta[itemprop=contentURL]")?.attr("content")).toString()
+        val video = fixUrlNull(document.selectFirst("meta[itemprop=contentURL]")?.attr("content")) ?: return false
 
         callback.invoke(newExtractorLink(
             this.name,

@@ -1,5 +1,5 @@
 // Orijinal eklenti: @Kraptor123 (Cs-GizliKeyif). Kişisel kullanım için düzenlendi.
-version = 1
+version = 2
 
 cloudstream {
     authors     = listOf("kraptor", "Psrpis")
