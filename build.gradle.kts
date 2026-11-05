@@ -51,13 +51,13 @@ subprojects {
         }
 
         compileOptions {
-            sourceCompatibility = JavaVersion.VERSION_1_8
-            targetCompatibility = JavaVersion.VERSION_1_8
+            sourceCompatibility = JavaVersion.VERSION_17
+            targetCompatibility = JavaVersion.VERSION_17
         }
 
         tasks.withType<KotlinJvmCompile> {
             compilerOptions {
-                jvmTarget.set(JvmTarget.JVM_1_8) // Required
+                jvmTarget.set(JvmTarget.JVM_17) // Required
                 freeCompilerArgs.addAll(
                     "-Xno-call-assertions",
                     "-Xno-param-assertions",
@@ -70,6 +70,9 @@ subprojects {
     dependencies {
         val cloudstream by configurations
         val implementation by configurations
+        val compileOnly by configurations
+        // jsoup/cloudstream başlıkları bunu bekliyor (sadece derleme için)
+        compileOnly("org.jspecify:jspecify:1.0.0")
 
         // Stubs for all cloudstream classes
         cloudstream("com.lagradost:cloudstream3:pre-release")
@@ -78,8 +81,8 @@ subprojects {
         // but you don't need to include any of them if you don't need them.
         // https://github.com/recloudstream/cloudstream/blob/master/app/build.gradle.kts
         implementation(kotlin("stdlib")) // Adds Standard Kotlin Features
-        implementation("com.github.Blatzar:NiceHttp:0.4.11") // HTTP Lib
-        implementation("org.jsoup:jsoup:1.18.3") // HTML Parser
+        implementation("com.github.Blatzar:NiceHttp:0.4.13") // HTTP Lib
+        implementation("org.jsoup:jsoup:1.22.1") // HTML Parser
         // IMPORTANT: Do not bump Jackson above 2.13.1, as newer versions will
         // break compatibility on older Android devices.
         implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.1") // JSON Parser
