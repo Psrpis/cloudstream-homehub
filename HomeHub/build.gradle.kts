@@ -5,7 +5,7 @@ dependencies {
 }
 
 // Her yeni sürümde bu sayıyı artır
-version = 2
+version = 3
 
 cloudstream {
     description = "Yüklü diğer eklentilerin ana sayfalarını tek yerde toplar"

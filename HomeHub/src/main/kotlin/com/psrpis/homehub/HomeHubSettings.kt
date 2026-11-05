@@ -145,7 +145,9 @@ internal object HomeHubSettings {
             label(
                 ctx,
                 "Öncelik sayısı büyük olan bölüm ana sayfada üstte durur. " +
-                    "Sırala ekranı bu sayıları sizin yerinize günceller.",
+                    "Sırala ekranı bu sayıları sizin yerinize günceller. " +
+                    "Eklenti adının solundaki kutuya dokununca o eklentinin tüm bölümleri " +
+                    "tek seferde kapanır (hiçbiri seçili değilse hepsi açılır).",
                 12f, secondary = true
             )
         )
@@ -159,15 +161,28 @@ internal object HomeHubSettings {
 
         live.groupBy { s -> s.provider }.forEach { (provider, sections) ->
             val head = label(ctx, "", 16f, bold = true)
-            head.setPadding(0, dp(ctx, 12), 0, dp(ctx, 6))
+            head.setPadding(0, dp(ctx, 12), 0, dp(ctx, 12))
+            head.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             val body = vertical(ctx)
             body.setPadding(dp(ctx, 8), 0, 0, 0)
             body.visibility = View.GONE
+
+            // Eklentinin tüm bölümlerini tek dokunuşla aç/kapat
+            val master = CheckBox(ctx)
+            val boxes = ArrayList<CheckBox>()
 
             fun refreshHead() {
                 val n = sections.count { s -> draft.containsKey(s.key) }
                 val arrow = if (body.visibility == View.VISIBLE) "▾" else "▸"
                 head.text = "$arrow $provider  ($n/${sections.size})"
+                // En az bir bölüm seçiliyse işaretli: dokununca hepsi kalkar. Hiç yoksa: dokununca hepsi seçilir.
+                master.isChecked = n > 0
+            }
+
+            master.setOnClickListener {
+                val selectAll = sections.none { s -> draft.containsKey(s.key) }
+                boxes.forEach { b -> b.isChecked = selectAll }
+                refreshHead()
             }
 
             sections.forEach { s ->
@@ -202,6 +217,7 @@ internal object HomeHubSettings {
                     refreshHead()
                 }
 
+                boxes.add(cb)
                 line.addView(cb)
                 line.addView(et)
                 body.addView(line)
@@ -212,7 +228,12 @@ internal object HomeHubSettings {
                 refreshHead()
             }
             refreshHead()
-            root.addView(head)
+            val headRow = LinearLayout(ctx)
+            headRow.orientation = LinearLayout.HORIZONTAL
+            headRow.gravity = Gravity.CENTER_VERTICAL
+            headRow.addView(master)
+            headRow.addView(head)
+            root.addView(headRow)
             root.addView(body)
         }
 
