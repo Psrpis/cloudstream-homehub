@@ -1,6 +1,7 @@
 dependencies {
     // Uygulama zaten sağlıyor, pakete eklenmesin
     compileOnly("androidx.appcompat:appcompat:1.7.1")
+    compileOnly("androidx.recyclerview:recyclerview:1.3.2")
 }
 
 // Her yeni sürümde bu sayıyı artır

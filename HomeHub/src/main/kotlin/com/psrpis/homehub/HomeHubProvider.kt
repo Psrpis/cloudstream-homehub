@@ -11,49 +11,38 @@ import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.newHomePageResponse
 
 internal const val SEP = "|||"
-internal const val HUB_NAME = "HomeHub"
-
-/** Ana sayfada gösterilebilecek tek bir bölüm (bir eklentinin bir ana sayfa satırı). */
-internal data class HubSection(
-    val key: String,          // "EklentiAdı|||orijinalData"
-    val title: String,        // "EklentiAdı • Bölüm"
-    val horizontal: Boolean,
-    val providerName: String
-)
+// Başına "!" koyduk: harf sıralamasında en başta çıkar. İstersen " " (boşluk) veya "#" yapabilirsin.
+internal const val SELF_NAME = "! HomeHub"
 
 /** Yüklü tüm eklentilerin güvenli bir kopyası (kilit altında alınır). */
 internal fun allApis(): List<MainAPI> =
     APIHolder.allProviders.withLock { APIHolder.allProviders.toList() }
 
-/** Yüklü eklentilerdeki tüm bölümler, doğal sırayla. */
-internal fun allSections(): List<HubSection> =
-    allApis()
-        .filter { p -> p.name != HUB_NAME && p.hasMainPage && p.mainPage.isNotEmpty() }
-        .flatMap { p ->
-            p.mainPage.map { d ->
-                HubSection(
-                    key = "${p.name}$SEP${d.data}",
-                    title = if (d.name.isBlank()) p.name else "${p.name} • ${d.name}",
-                    horizontal = d.horizontalImages,
-                    providerName = p.name
-                )
-            }
-        }
-        .distinctBy { it.key }
-
-/** Kullanıcının kaydettiği sıraya göre dizilmiş bölümler (kapalı olanlar dahil). */
-internal fun orderedSections(): List<HubSection> {
-    val idx = HomeHubPrefs.order().withIndex().associate { it.value to it.index }
-    return allSections().sortedBy { idx[it.key] ?: Int.MAX_VALUE }
+/** Başka bir eklentinin ana sayfasındaki tek bir bölüm. */
+internal data class LiveSection(
+    val provider: String,
+    val name: String,
+    val data: String,
+    val horizontal: Boolean
+) {
+    val key: String get() = "$provider$SEP$data"
+    val title: String get() = if (name.isBlank()) provider else "$provider • $name"
+    val shortName: String get() = name.ifBlank { provider }
 }
 
+internal fun liveSections(): List<LiveSection> =
+    allApis()
+        .filter { api -> api.name != SELF_NAME && api.hasMainPage && api.mainPage.isNotEmpty() }
+        .flatMap { api ->
+            api.mainPage.map { d -> LiveSection(api.name, d.name, d.data, d.horizontalImages) }
+        }
+
 /**
- * HomeHub: yüklü diğer eklentilerin ana sayfa bölümlerini tek bir ana sayfada toplar.
- * Bölümler ayarlardan tek tek açılıp kapatılabilir ve sıralanabilir.
- * Tıklanan içerik, kendi eklentisi (apiName) üzerinden açılır.
+ * HomeHub: yüklü diğer eklentilerin ana sayfa bölümlerini, ayarlarda seçilen
+ * sırayla tek bir ana sayfada toplar. Tıklanan içerik kendi eklentisiyle açılır.
  */
 class HomeHubProvider : MainAPI() {
-    override var name = HUB_NAME
+    override var name = SELF_NAME
     override var mainUrl = "https://homehub.invalid"
     override val hasMainPage = true
     override val supportedTypes = setOf(
@@ -61,14 +50,30 @@ class HomeHubProvider : MainAPI() {
         TvType.OVA, TvType.Cartoon, TvType.AsianDrama, TvType.Others
     )
 
-    // Bölümler sabit değil: her açılışta, kayıtlı ayarlara göre oluşturulur
+    // Her açılışta, o an yüklü eklentiler ve kayıtlı ayarlardan oluşturulur
     override val mainPage: List<MainPageData>
         get() {
-            val off = HomeHubPrefs.disabledSections()
-            return orderedSections()
-                .filter { it.key !in off }
-                .map { MainPageData(it.title, it.key, it.horizontal) }
-                .ifEmpty { listOf(MainPageData("Bölüm yok", "", false)) }
+            val live = liveSections()
+            val chosen: List<LiveSection> =
+                if (!HomeHubPrefs.configured) {
+                    live
+                } else {
+                    val byKey = live.associateBy { s -> s.key }
+                    HomeHubPrefs.sections().entries
+                        .sortedByDescending { e -> e.value }
+                        .mapNotNull { e -> byKey[e.key] }
+                }
+
+            val showName = HomeHubPrefs.showExtensionName
+            val dupes = chosen.groupingBy { s -> s.shortName }.eachCount()
+            val list = chosen.map { s ->
+                val title =
+                    if (showName || (dupes[s.shortName] ?: 0) > 1) s.title else s.shortName
+                MainPageData(title, s.key, s.horizontal)
+            }
+            return list.ifEmpty {
+                listOf(MainPageData("HomeHub: ayarlardan bölüm seç", "", false))
+            }
         }
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse? {
@@ -77,8 +82,8 @@ class HomeHubProvider : MainAPI() {
         val providerName = parts[0]
         val origData = parts[1]
 
-        val provider = allApis().firstOrNull { it.name == providerName } ?: return null
-        val orig = provider.mainPage.firstOrNull { it.data == origData }
+        val provider = allApis().firstOrNull { api -> api.name == providerName } ?: return null
+        val orig = provider.mainPage.firstOrNull { d -> d.data == origData }
         val origRequest = MainPageRequest(
             orig?.name ?: "",
             origData,
@@ -91,8 +96,8 @@ class HomeHubProvider : MainAPI() {
             null
         } ?: return null
 
-        val items = res.items.map {
-            HomePageList("${provider.name} • ${it.name}", it.list, it.isHorizontalImages)
+        val items = res.items.map { l ->
+            HomePageList("${provider.name} • ${l.name}", l.list, l.isHorizontalImages)
         }
         return newHomePageResponse(items, res.hasNext)
     }
