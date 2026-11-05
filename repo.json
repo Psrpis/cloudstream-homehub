@@ -1,0 +1,8 @@
+{
+  "name": "Ps Repo",
+  "description": "Psrpis kişisel Cloudstream eklentileri",
+  "manifestVersion": 1,
+  "pluginLists": [
+    "https://raw.githubusercontent.com/Psrpis/ps-repo/builds/plugins.json"
+  ]
+}
