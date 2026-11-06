@@ -22,7 +22,7 @@ class WatchPornPs : MainAPI() {
         "${mainUrl}/latest-updates/"          to "New",
         "${mainUrl}/top-rated/"               to "Top Rated",
         "${mainUrl}/most-popular/"            to "Most Viewed",
-        "${mainUrl}/categories/exclusive/"    to "Exclusive",
+        "${mainUrl}/tags/exclusive/"          to "Exclusive",
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
